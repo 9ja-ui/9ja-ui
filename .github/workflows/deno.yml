@@ -1,42 +1,41 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow will install Deno then run `deno lint` and `deno test`.
-# For more information see: https://github.com/denoland/setup-deno
-
-name: Deno
+name: Test Playwright
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-
-permissions:
-  contents: read
+  workflow_dispatch:
+  schedule:
+    # Approx every 5h55m, using multiple triggers
+    - cron: "0 0,5,11,16,22 * * *" 
 
 jobs:
-  test:
+  run-playwright:
     runs-on: ubuntu-latest
+    timeout-minutes: 355   # Stops before GitHub kills job at 6h
+
+    strategy:
+      fail-fast: false
+      matrix:
+        instance: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]   # 5 parallel runners
 
     steps:
-      - name: Setup repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Deno
-        # uses: denoland/setup-deno@v1
-        uses: denoland/setup-deno@61fe2df320078202e33d7d5ad347e7dcfa0e8f31  # v1.1.2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          deno-version: v1.x
+          node-version: 20
 
-      # Uncomment this step to verify the use of 'deno fmt' on each commit.
-      # - name: Verify formatting
-      #   run: deno fmt --check
+      - name: Install dependencies
+        run: npm install
 
-      - name: Run linter
-        run: deno lint
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Run tests
-        run: deno test -A
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run Script in Virtual Display
+        env:
+          INSTANCE_ID: ${{ matrix.instance }}
+        run: xvfb-run node init.js
+        
